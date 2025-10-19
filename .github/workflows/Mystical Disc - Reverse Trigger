@@ -1,0 +1,84 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: http://localhost:8357/jellycrm.html.html
+Subject: Mystical Disc - Reverse Trigger
+Date: Tue, 23 Sep 2025 16:16:08 -0500
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--3KNPZBPKYkZMKeUiXeHeLWSpaxJsu4d7z4SbDAl9bH----"
+
+
+------MultipartBoundary--3KNPZBPKYkZMKeUiXeHeLWSpaxJsu4d7z4SbDAl9bH----
+Content-Type: text/html
+Content-ID: <frame-7A6A7CA06A519EC40DF4D1D40230170B@mhtml.blink>
+Content-Transfer-Encoding: binary
+Content-Location: http://localhost:8357/jellycrm.html.html
+
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><link rel="stylesheet" type="text/css" href="cid:css-f175da52-8129-4ad1-99e2-e1cf9bc5f28c@mhtml.blink" /><meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystical Disc - Reverse Trigger</title>
+    
+</head>
+<body>
+    <div id="controls">
+        <h4>Mystical Controls:</h4>
+        <label>Disc Image (triggers reverse):</label>
+        <input type="file" id="discImage" accept="image/*" capture="environment">
+        <label>Left Orbiter:</label>
+        <input type="file" id="leftOrbiter" accept="image/*" capture="environment">
+        <label>Right Orbiter:</label>
+        <input type="file" id="rightOrbiter" accept="image/*" capture="environment">
+        
+        <button id="iceButton" class="ice-button">❄️ Ice Trigger</button>
+        <button id="fireButton" class="fire-button">🔥 Fire Trigger</button>
+        <button id="lightningButton" class="lightning-button">⚡ Lightning Trigger</button>
+        <button id="throwDiceButton" class="dice-button">🎲 Throw D4</button>
+        <button id="resetButton">Reset Scene</button>
+        <button id="debugButton">🔍 Debug Disc</button>
+        
+        <small>Mouse: rotate | Space: pause | I: ice | F: fire | L: lightning | D: throw dice</small>
+    </div>
+
+    
+    <canvas width="384" height="693" style="display: block; width: 384px; height: 693px;"></canvas>
+
+</body></html>
+------MultipartBoundary--3KNPZBPKYkZMKeUiXeHeLWSpaxJsu4d7z4SbDAl9bH----
+Content-Type: text/css
+Content-Transfer-Encoding: binary
+Content-Location: cid:css-f175da52-8129-4ad1-99e2-e1cf9bc5f28c@mhtml.blink
+
+@charset "utf-8";
+
+body { margin: 0px; padding: 0px; background: linear-gradient(45deg, rgb(0, 17, 34), rgb(0, 34, 68)); overflow: hidden; }
+
+canvas { display: block; }
+
+#controls { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 8px; color: white; font-family: Arial, sans-serif; font-size: 12px; }
+
+input[type="file"], button { margin: 5px 0px; display: block; padding: 8px; border: none; border-radius: 4px; }
+
+button { background: rgb(76, 175, 80); color: white; cursor: pointer; }
+
+button:hover { background: rgb(69, 160, 73); }
+
+.ice-button { background: rgb(0, 204, 255) !important; }
+
+.fire-button { background: rgb(255, 68, 0) !important; }
+
+.fire-button:hover { background: rgb(204, 51, 0) !important; }
+
+.lightning-button { background: rgb(255, 221, 0) !important; color: rgb(0, 0, 0) !important; }
+
+.lightning-button:hover { background: rgb(204, 170, 0) !important; }
+
+.dice-button { background: rgb(136, 85, 255) !important; color: white !important; }
+
+.dice-button:hover { background: rgb(102, 51, 204) !important; }
+
+label { color: rgb(136, 204, 255); margin-top: 10px; display: block; }
+------MultipartBoundary--3KNPZBPKYkZMKeUiXeHeLWSpaxJsu4d7z4SbDAl9bH------

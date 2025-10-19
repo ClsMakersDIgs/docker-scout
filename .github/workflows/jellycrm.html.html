@@ -1,0 +1,925 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <img>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystical Disc - Reverse Trigger</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(45deg, #001122, #002244);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        input[type="file"], button {
+            margin: 5px 0;
+            display: block;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .ice-button {
+            background: #00ccff !important;
+        }
+        .fire-button {
+            background: #ff4400 !important;
+        }
+        .fire-button:hover {
+            background: #cc3300 !important;
+        }
+        .lightning-button {
+            background: #ffdd00 !important;
+            color: #000 !important;
+        }
+        .lightning-button:hover {
+            background: #ccaa00 !important;
+        }
+        .dice-button {
+            background: #8855ff !important;
+            color: white !important;
+        }
+        .dice-button:hover {
+            background: #6633cc !important;
+        }
+        label {
+            color: #88ccff;
+            margin-top: 10px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h4>Mystical Controls:</h4>
+        <label>Disc Image (triggers reverse):</label>
+        <input type="file" id="discImage" accept="image/*" capture="environment">
+        <label>Left Orbiter:</label>
+        <input type="file" id="leftOrbiter" accept="image/*" capture="environment">
+        <label>Right Orbiter:</label>
+        <input type="file" id="rightOrbiter" accept="image/*" capture="environment">
+        
+        <button id="iceButton" class="ice-button">❄️ Ice Trigger</button>
+        <button id="fireButton" class="fire-button">🔥 Fire Trigger</button>
+        <button id="lightningButton" class="lightning-button">⚡ Lightning Trigger</button>
+        <button id="throwDiceButton" class="dice-button">🎲 Throw D4</button>
+        <button id="resetButton">Reset Scene</button>
+        <button id="debugButton">🔍 Debug Disc</button>
+        
+        <small>Mouse: rotate | Space: pause | I: ice | F: fire | L: lightning | D: throw dice</small>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404080, 0.6);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x8888ff, 1, 100);
+        pointLight.position.set(0, 0, 10);
+        scene.add(pointLight);
+
+        // Animation state
+        let time = 0;
+        let autoRotate = true;
+        let isReversed = false;
+        let iceMode = false;
+        let fireMode = false;
+        let lightningMode = false;
+        const orbitRadius = 5;
+
+        // 3D Effect objects
+        let iceBlades = [];
+        let lightningBolts = [];
+        let fireParticles = [];
+        let dice = null;
+        let diceThrown = false;
+
+        // Create default glyph texture
+        function createGlyphTexture(reversed = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, 512, 512);
+            
+            // Background with mystical gradient
+            const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+            gradient.addColorStop(0, '#440088');
+            gradient.addColorStop(0.7, '#220044');
+            gradient.addColorStop(1, '#110022');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Celtic border
+            ctx.strokeStyle = '#aa66ff';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(256, 256, 200, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner mystical eye
+            ctx.save();
+            ctx.translate(256, 256);
+            
+            // If reversed, flip horizontally
+            if (reversed) {
+                ctx.scale(-1, 1);
+            }
+            
+            // Draw eye symbol
+            ctx.fillStyle = '#ff44aa';
+            ctx.strokeStyle = '#ffaacc';
+            ctx.lineWidth = 4;
+            
+            // Eye outline
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 80, 40, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Pupil
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eye details
+            ctx.strokeStyle = '#88aaff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-60, -20);
+            ctx.lineTo(-40, -30);
+            ctx.moveTo(40, -30);
+            ctx.lineTo(60, -20);
+            ctx.moveTo(-60, 20);
+            ctx.lineTo(-40, 30);
+            ctx.moveTo(40, 30);
+            ctx.lineTo(60, 20);
+            ctx.stroke();
+            
+            ctx.restore();
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createSymbolTexture(symbol, color, effectMode = 'none') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, 256, 256);
+            
+            // Effect background
+            if (effectMode === 'frozen') {
+                const iceGradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                iceGradient.addColorStop(0, 'rgba(200, 240, 255, 0.3)');
+                iceGradient.addColorStop(1, 'rgba(100, 200, 255, 0.1)');
+                ctx.fillStyle = iceGradient;
+                ctx.fillRect(0, 0, 256, 256);
+            } else if (effectMode === 'fire') {
+                const fireGradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                fireGradient.addColorStop(0, 'rgba(255, 100, 0, 0.4)');
+                fireGradient.addColorStop(0.5, 'rgba(255, 50, 0, 0.2)');
+                fireGradient.addColorStop(1, 'rgba(200, 0, 0, 0.1)');
+                ctx.fillStyle = fireGradient;
+                ctx.fillRect(0, 0, 256, 256);
+            } else if (effectMode === 'lightning') {
+                const lightningGradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                lightningGradient.addColorStop(0, 'rgba(255, 255, 100, 0.4)');
+                lightningGradient.addColorStop(0.5, 'rgba(200, 200, 255, 0.2)');
+                lightningGradient.addColorStop(1, 'rgba(100, 100, 200, 0.1)');
+                ctx.fillStyle = lightningGradient;
+                ctx.fillRect(0, 0, 256, 256);
+            }
+            
+            // Set colors based on effect
+            let strokeColor = color;
+            let fillColor = color;
+            let lineWidth = 6;
+            
+            if (effectMode === 'frozen') {
+                strokeColor = '#aaeeff';
+                fillColor = '#ccf0ff';
+                lineWidth = 8;
+            } else if (effectMode === 'fire') {
+                strokeColor = '#ff6600';
+                fillColor = '#ff9933';
+                lineWidth = 8;
+            } else if (effectMode === 'lightning') {
+                strokeColor = '#ffff00';
+                fillColor = '#ffffaa';
+                lineWidth = 8;
+            }
+            
+            ctx.strokeStyle = strokeColor;
+            ctx.fillStyle = fillColor;
+            ctx.lineWidth = lineWidth;
+            
+            if (symbol === 'moon') {
+                // Draw crescent moon
+                ctx.beginPath();
+                ctx.arc(128, 128, 60, 0.3 * Math.PI, 1.7 * Math.PI);
+                ctx.arc(148, 128, 60, 1.7 * Math.PI, 0.3 * Math.PI, true);
+                ctx.fill();
+                
+                // Add effect details
+                if (effectMode === 'frozen') {
+                    // Ice crystals
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI) / 3;
+                        const x = 128 + Math.cos(angle) * 80;
+                        const y = 128 + Math.sin(angle) * 80;
+                        ctx.beginPath();
+                        ctx.moveTo(x - 5, y);
+                        ctx.lineTo(x + 5, y);
+                        ctx.moveTo(x, y - 5);
+                        ctx.lineTo(x, y + 5);
+                        ctx.stroke();
+                    }
+                } else if (effectMode === 'fire') {
+                    // Fire flames
+                    ctx.strokeStyle = '#ff3300';
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI) / 4;
+                        const x1 = 128 + Math.cos(angle) * 70;
+                        const y1 = 128 + Math.sin(angle) * 70;
+                        const x2 = 128 + Math.cos(angle) * 90;
+                        const y2 = 128 + Math.sin(angle) * 90;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.quadraticCurveTo(x1 + 10, y1 - 10, x2, y2);
+                        ctx.stroke();
+                    }
+                } else if (effectMode === 'lightning') {
+                    // Lightning bolts
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i * Math.PI) / 2;
+                        const x1 = 128 + Math.cos(angle) * 50;
+                        const y1 = 128 + Math.sin(angle) * 50;
+                        const x2 = 128 + Math.cos(angle) * 100;
+                        const y2 = 128 + Math.sin(angle) * 100;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x1 + 10, y1 + 10);
+                        ctx.lineTo(x2 - 10, y2 - 10);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                }
+                
+            } else if (symbol === 'star') {
+                // Draw 8-pointed star
+                ctx.save();
+                ctx.translate(128, 128);
+                ctx.beginPath();
+                for (let i = 0; i < 16; i++) {
+                    const radius = i % 2 === 0 ? 50 : 25;
+                    const angle = (i * Math.PI) / 8;
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // Add effect details
+                if (effectMode === 'frozen') {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (effectMode === 'fire') {
+                    // Fire glow
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                } else if (effectMode === 'lightning') {
+                    // Electric glow
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Create materials and objects
+        let glyphTexture = createGlyphTexture();
+        let leftTexture = createSymbolTexture('moon', '#88ccff');
+        let rightTexture = createSymbolTexture('star', '#ffcc88');
+
+        // Single-sided disc (just a plane) - ensure it faces camera
+        const discGeometry = new THREE.PlaneGeometry(5, 5);
+        const discMaterial = new THREE.MeshLambertMaterial({ 
+            map: glyphTexture, 
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const disc = new THREE.Mesh(discGeometry, discMaterial);
+        // Make sure the disc faces the camera initially
+        disc.rotation.x = 0;
+        scene.add(disc);
+
+        // Orbiting objects
+        const orbiterGeometry = new THREE.PlaneGeometry(1.5, 1.5);
+        const leftOrbiter = new THREE.Mesh(
+            orbiterGeometry, 
+            new THREE.MeshLambertMaterial({ map: leftTexture, transparent: true })
+        );
+        const rightOrbiter = new THREE.Mesh(
+            orbiterGeometry, 
+            new THREE.MeshLambertMaterial({ map: rightTexture, transparent: true })
+        );
+
+        scene.add(leftOrbiter);
+        scene.add(rightOrbiter);
+
+        // Camera position
+        camera.position.z = 8;
+        camera.position.y = 1;
+
+        // File loading function with better error handling
+        function loadImageTexture(file, callback) {
+            console.log('Starting to load image:', file.name);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                console.log('File read successfully');
+                const img = new Image();
+                img.onload = function() {
+                    console.log('Image loaded successfully, dimensions:', img.width, 'x', img.height);
+                    const texture = new THREE.Texture(img);
+                    texture.needsUpdate = true;
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    callback(texture);
+                };
+                img.onerror = function() {
+                    console.error('Failed to load image');
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() {
+                console.error('Failed to read file');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Reverse glyph function
+        function reverseGlyph() {
+            isReversed = !isReversed;
+            glyphTexture = createGlyphTexture(isReversed);
+            disc.material.map = glyphTexture;
+            disc.material.needsUpdate = true;
+            
+            // Add reverse animation
+            disc.rotation.y += Math.PI;
+        }
+
+        // Ice trigger function
+        function triggerIceEvent() {
+            resetAllModes();
+            iceMode = true;
+            updateEffects();
+        }
+
+        // Fire trigger function
+        function triggerFireEvent() {
+            resetAllModes();
+            fireMode = true;
+            updateEffects();
+        }
+
+        // Lightning trigger function
+        function triggerLightningEvent() {
+            resetAllModes();
+            lightningMode = true;
+            updateEffects();
+        }
+
+        // Reset all effect modes
+        function resetAllModes() {
+            iceMode = false;
+            fireMode = false;
+            lightningMode = false;
+        }
+
+        // Create 3D ice blades that rise from the ground
+        function createIceBlades() {
+            clearAllEffects();
+            
+            for (let i = 0; i < 8; i++) {
+                const bladeGeometry = new THREE.ConeGeometry(0.2, 3, 6);
+                const bladeMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x88ccff, 
+                    transparent: true, 
+                    opacity: 0.8 
+                });
+                const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                
+                // Position blades in a circle around the disc
+                const angle = (i / 8) * Math.PI * 2;
+                blade.position.x = Math.cos(angle) * 4;
+                blade.position.z = Math.sin(angle) * 4;
+                blade.position.y = -2; // Start below ground
+                blade.rotation.x = Math.PI; // Point upward
+                
+                scene.add(blade);
+                iceBlades.push(blade);
+            }
+            
+            // Animate blades rising
+            let riseHeight = 0;
+            const riseInterval = setInterval(() => {
+                riseHeight += 0.1;
+                iceBlades.forEach(blade => {
+                    blade.position.y = -2 + riseHeight;
+                });
+                
+                if (riseHeight >= 3) {
+                    clearInterval(riseInterval);
+                }
+            }, 50);
+        }
+
+        // Create lightning bolts that strike down
+        function createLightningStrikes() {
+            clearAllEffects();
+            
+            for (let i = 0; i < 6; i++) {
+                setTimeout(() => {
+                    const boltGeometry = new THREE.CylinderGeometry(0.05, 0.05, 6, 6);
+                    const boltMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xffffaa,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    
+                    // Random position around the scene
+                    bolt.position.x = (Math.random() - 0.5) * 10;
+                    bolt.position.z = (Math.random() - 0.5) * 10;
+                    bolt.position.y = 8; // Start high above
+                    
+                    // Add jagged rotation for more realistic lightning
+                    bolt.rotation.z = (Math.random() - 0.5) * 0.5;
+                    
+                    scene.add(bolt);
+                    lightningBolts.push(bolt);
+                    
+                    // Animate bolt striking down
+                    let strikePos = 8;
+                    const strikeInterval = setInterval(() => {
+                        strikePos -= 0.3;
+                        bolt.position.y = strikePos;
+                        
+                        // Flash effect
+                        if (Math.random() < 0.3) {
+                            bolt.material.opacity = Math.random() * 0.5 + 0.5;
+                        }
+                        
+                        if (strikePos <= 0) {
+                            clearInterval(strikeInterval);
+                            // Remove bolt after striking
+                            setTimeout(() => {
+                                scene.remove(bolt);
+                                const index = lightningBolts.indexOf(bolt);
+                                if (index > -1) lightningBolts.splice(index, 1);
+                            }, 500);
+                        }
+                    }, 30);
+                }, i * 200); // Stagger the strikes
+            }
+        }
+
+        // Create fire elements that flicker and grow
+        function createFireElements() {
+            clearAllEffects();
+            
+            for (let i = 0; i < 12; i++) {
+                const fireGeometry = new THREE.SphereGeometry(0.3, 8, 6);
+                const fireMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xff4400,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const fireParticle = new THREE.Mesh(fireGeometry, fireMaterial);
+                
+                // Random positions around the disc
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 2 + Math.random() * 3;
+                fireParticle.position.x = Math.cos(angle) * distance;
+                fireParticle.position.z = Math.sin(angle) * distance;
+                fireParticle.position.y = Math.random() * 2;
+                
+                fireParticle.userData = {
+                    originalY: fireParticle.position.y,
+                    flickerSpeed: Math.random() * 0.1 + 0.05
+                };
+                
+                scene.add(fireParticle);
+                fireParticles.push(fireParticle);
+            }
+        }
+
+        // Create D4 dice
+        function createDice() {
+            const diceGeometry = new THREE.TetrahedronGeometry(0.5);
+            const diceMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x2d4a2d,
+                transparent: false
+            });
+            const newDice = new THREE.Mesh(diceGeometry, diceMaterial);
+            return newDice;
+        }
+
+        // Throw dice animation
+        function throwDice() {
+            if (diceThrown) return; // Prevent multiple throws at once
+            
+            // Remove old dice if it exists
+            if (dice) {
+                scene.remove(dice);
+            }
+            
+            // Create new dice
+            dice = createDice();
+            dice.position.set(-8, 6, 2); // Start position (off-screen left, high up)
+            scene.add(dice);
+            
+            diceThrown = true;
+            let throwTime = 0;
+            const throwDuration = 2; // 2 seconds
+            
+            const throwInterval = setInterval(() => {
+                throwTime += 0.05;
+                const progress = throwTime / throwDuration;
+                
+                // Physics simulation for throw
+                dice.position.x = -8 + (progress * 8); // Move toward center
+                dice.position.y = 6 - (progress * progress * 8); // Gravity arc
+                dice.position.z = 2 - (progress * 2); // Move toward disc
+                
+                // Spinning dice
+                dice.rotation.x += 0.2;
+                dice.rotation.y += 0.15;
+                dice.rotation.z += 0.1;
+                
+                // Check if dice hits the glyph area
+                if (progress >= 0.8 && dice.position.distance(disc.position) < 3) {
+                    clearInterval(throwInterval);
+                    
+                    // Roll result (1-4)
+                    const rollResult = Math.floor(Math.random() * 4) + 1;
+                    console.log('Dice rolled:', rollResult);
+                    
+                    // Trigger effect based on roll
+                    setTimeout(() => {
+                        triggerDiceEffect(rollResult);
+                        
+                        // Remove dice after effect
+                        setTimeout(() => {
+                            if (dice) {
+                                scene.remove(dice);
+                                dice = null;
+                                diceThrown = false;
+                            }
+                        }, 1000);
+                    }, 500);
+                    
+                    return;
+                }
+                
+                // End throw if time runs out
+                if (throwTime >= throwDuration) {
+                    clearInterval(throwInterval);
+                    const rollResult = Math.floor(Math.random() * 4) + 1;
+                    triggerDiceEffect(rollResult);
+                    
+                    setTimeout(() => {
+                        if (dice) {
+                            scene.remove(dice);
+                            dice = null;
+                            diceThrown = false;
+                        }
+                    }, 1000);
+                }
+            }, 50);
+        }
+
+        // Trigger effect based on dice roll
+        function triggerDiceEffect(roll) {
+            resetAllModes();
+            
+            switch(roll) {
+                case 1:
+                    // Normal/reset state
+                    console.log('Dice effect: Reset/Normal');
+                    break;
+                case 2:
+                    // Ice effect
+                    iceMode = true;
+                    console.log('Dice effect: Ice');
+                    break;
+                case 3:
+                    // Fire effect
+                    fireMode = true;
+                    console.log('Dice effect: Fire');
+                    break;
+                case 4:
+                    // Lightning effect
+                    lightningMode = true;
+                    console.log('Dice effect: Lightning');
+                    break;
+            }
+            
+            updateEffects();
+            
+            // Flash the disc to show effect activation
+            const originalIntensity = pointLight.intensity;
+            pointLight.intensity = 2;
+            setTimeout(() => {
+                pointLight.intensity = originalIntensity;
+            }, 200);
+        }
+        // Clear all 3D effects
+        function clearAllEffects() {
+            // Remove ice blades
+            iceBlades.forEach(blade => scene.remove(blade));
+            iceBlades = [];
+            
+            // Remove lightning bolts
+            lightningBolts.forEach(bolt => scene.remove(bolt));
+            lightningBolts = [];
+            
+            // Remove fire particles
+            fireParticles.forEach(particle => scene.remove(particle));
+            fireParticles = [];
+            
+            // Remove dice if present
+            if (dice) {
+                scene.remove(dice);
+                dice = null;
+                diceThrown = false;
+            }
+        }
+        // Update effects based on current mode
+        function updateEffects() {
+            let effectMode = 'none';
+            let lightColor = 0x8888ff;
+            let ambientColor = 0x404080;
+
+            if (iceMode) {
+                effectMode = 'frozen';
+                lightColor = 0xaaeeff;
+                ambientColor = 0x6080a0;
+                createIceBlades();
+            } else if (fireMode) {
+                effectMode = 'fire';
+                lightColor = 0xff6600;
+                ambientColor = 0x806040;
+                createFireElements();
+            } else if (lightningMode) {
+                effectMode = 'lightning';
+                lightColor = 0xffffaa;
+                ambientColor = 0xa0a080;
+                createLightningStrikes();
+            } else {
+                clearAllEffects();
+            }
+
+            // Update textures with current effect
+            leftTexture = createSymbolTexture('moon', '#88ccff', effectMode);
+            rightTexture = createSymbolTexture('star', '#ffcc88', effectMode);
+            
+            leftOrbiter.material.map = leftTexture;
+            leftOrbiter.material.needsUpdate = true;
+            rightOrbiter.material.map = rightTexture;
+            rightOrbiter.material.needsUpdate = true;
+            
+            // Update lighting
+            pointLight.color.setHex(lightColor);
+            ambientLight.color.setHex(ambientColor);
+        }
+
+        // Event listeners
+        document.getElementById('discImage').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                console.log('Loading disc image:', e.target.files[0].name);
+                loadImageTexture(e.target.files[0], function(texture) {
+                    console.log('Disc texture loaded successfully');
+                    disc.material.map = texture;
+                    disc.material.needsUpdate = true;
+                    // Don't auto-reverse when loading image - let user control it
+                });
+            }
+        });
+
+        document.getElementById('leftOrbiter').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                loadImageTexture(e.target.files[0], function(texture) {
+                    leftOrbiter.material.map = texture;
+                    leftOrbiter.material.needsUpdate = true;
+                });
+            }
+        });
+
+        document.getElementById('rightOrbiter').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                loadImageTexture(e.target.files[0], function(texture) {
+                    rightOrbiter.material.map = texture;
+                    rightOrbiter.material.needsUpdate = true;
+                });
+            }
+        });
+
+        document.getElementById('iceButton').addEventListener('click', triggerIceEvent);
+        document.getElementById('fireButton').addEventListener('click', triggerFireEvent);
+        document.getElementById('lightningButton').addEventListener('click', triggerLightningEvent);
+        document.getElementById('throwDiceButton').addEventListener('click', throwDice);
+        
+        document.getElementById('debugButton').addEventListener('click', function() {
+            console.log('=== DISC DEBUG INFO ===');
+            console.log('Disc position:', disc.position);
+            console.log('Disc rotation:', disc.rotation);
+            console.log('Disc material:', disc.material);
+            console.log('Disc texture:', disc.material.map);
+            console.log('Camera position:', camera.position);
+            
+            // Reset disc to face camera directly
+            disc.rotation.set(0, 0, 0);
+            camera.position.set(0, 0, 8);
+            camera.lookAt(0, 0, 0);
+            
+            alert('Disc reset to face camera. Check console for debug info.');
+        });
+        
+        document.getElementById('resetButton').addEventListener('click', function() {
+            location.reload();
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                    autoRotate = !autoRotate;
+                    e.preventDefault();
+                    break;
+                case 'i':
+                    triggerIceEvent();
+                    break;
+                case 'f':
+                    triggerFireEvent();
+                    break;
+                case 'l':
+                    triggerLightningEvent();
+                    break;
+                case 'r':
+                    reverseGlyph();
+                    break;
+                case 'd':
+                    throwDice();
+                    break;
+            }
+        });
+
+        // Mouse controls
+        let mouseDown = false;
+        let mouseX = 0, mouseY = 0;
+
+        document.addEventListener('mousedown', (e) => {
+            mouseDown = true;
+            autoRotate = false;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        document.addEventListener('mouseup', () => {
+            mouseDown = false;
+            setTimeout(() => { autoRotate = true; }, 2000);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (mouseDown) {
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                disc.rotation.y += deltaX * 0.01;
+                disc.rotation.x += deltaY * 0.01;
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            }
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.02;
+
+            if (autoRotate) {
+                // Rotate the main disc
+                disc.rotation.z += 0.01;
+
+                // Orbit the symbols
+                leftOrbiter.position.x = Math.cos(time) * orbitRadius;
+                leftOrbiter.position.y = Math.sin(time) * orbitRadius * 0.5;
+                leftOrbiter.position.z = Math.sin(time * 0.5) * 2;
+
+                rightOrbiter.position.x = Math.cos(time + Math.PI) * orbitRadius;
+                rightOrbiter.position.y = Math.sin(time + Math.PI) * orbitRadius * 0.5;
+                rightOrbiter.position.z = Math.sin((time + Math.PI) * 0.5) * 2;
+
+                // Make orbiters face camera
+                leftOrbiter.lookAt(camera.position);
+                rightOrbiter.lookAt(camera.position);
+                
+                // Effect animations
+                if (iceMode) {
+                    leftOrbiter.rotation.z += 0.02;
+                    rightOrbiter.rotation.z -= 0.02;
+                    // Animate ice blades
+                    iceBlades.forEach((blade, index) => {
+                        blade.rotation.y += 0.01;
+                        blade.position.y += Math.sin(time * 2 + index) * 0.02;
+                    });
+                } else if (fireMode) {
+                    // Fire mode effects - flickering
+                    leftOrbiter.position.y += Math.sin(time * 8) * 0.1;
+                    rightOrbiter.position.y += Math.cos(time * 8) * 0.1;
+                    leftOrbiter.rotation.z += 0.03;
+                    rightOrbiter.rotation.z += 0.03;
+                    // Animate fire particles
+                    fireParticles.forEach(particle => {
+                        particle.position.y = particle.userData.originalY + Math.sin(time * 10 + particle.position.x) * 0.5;
+                        particle.material.opacity = 0.4 + Math.sin(time * 15 + particle.position.z) * 0.3;
+                    });
+                } else if (lightningMode) {
+                    // Lightning mode effects - quick jerky movements
+                    if (Math.random() < 0.1) {
+                        leftOrbiter.position.x += (Math.random() - 0.5) * 0.3;
+                        leftOrbiter.position.y += (Math.random() - 0.5) * 0.3;
+                    }
+                    if (Math.random() < 0.1) {
+                        rightOrbiter.position.x += (Math.random() - 0.5) * 0.3;
+                        rightOrbiter.position.y += (Math.random() - 0.5) * 0.3;
+                    }
+                    // Animate remaining lightning bolts
+                    lightningBolts.forEach(bolt => {
+                        bolt.material.opacity = 0.5 + Math.random() * 0.5;
+                    });
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
